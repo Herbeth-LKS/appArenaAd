@@ -1,0 +1,14 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "typeRoots": ["./node_modules/@types", "./@types"],
+    "baseUrl": ".",
+    "strict": true,
+    "experimentalDecorators": true,
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    }
+  }
+}
