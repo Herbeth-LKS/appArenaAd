@@ -60,28 +60,30 @@ export function AppProvider({ children }: AppProviderProps) {
 
   useEffect(() => {
     const initialize = async () => {
-      const unityRewardedAd = await UnityAdsModule.initializeAd(
-        '5767247',
-        false,
-      )
-      console.log('INITIALIZE UNITY ADS -> ' + unityRewardedAd)
+      try {
+        const unityRewardedAd = await UnityAdsModule.initializeAd(
+          '5767247',
+          false,
+        )
+        console.log('INITIALIZE UNITY ADS -> ' + unityRewardedAd)
+
+        // Carrega o anúncio após inicializar
+        UnityAdsModule.loadAd('Interstitial_Android')
+      } catch (error) {
+        console.error('Erro ao inicializar Unity Ads:', error)
+      }
     }
 
-    initialize()
-    UnityAdsModule.loadAd('Interstitial_Android')
-  }, [])
-
-  useEffect(() => {
     const loadEventEmitter = new NativeEventEmitter()
     const showEventEmitter = new NativeEventEmitter()
 
-    const setupEventListeners = async () => {
+    const setupEventListeners = () => {
       const loadEventListener = loadEventEmitter.addListener(
         'AD_LOADED',
         (event) => {
           console.log('Unity Ad loading complete')
           console.log(event.adStatus) // "someValue"
-          UnityAdsModule.showAd('Interstitial_Android') // show unity ad
+          UnityAdsModule.showAd('Interstitial_Android') // Exibe o anúncio
         },
       )
 
@@ -92,23 +94,25 @@ export function AppProvider({ children }: AppProviderProps) {
           console.log(event.adStatus) // "someValue"
 
           if (event.adStatus === 'fullComplete') {
-            console.log('ad complete')
+            console.log('Ad complete')
           }
         },
       )
 
-      /* Unsubscribe from events on unmount */
+      // Retorna função de cleanup
       return () => {
         loadEventListener.remove()
         showEventListener.remove()
       }
     }
 
-    // Chame a função assíncrona
-    setupEventListeners()
+    // Inicializa Unity Ads e configura ouvintes
+    initialize()
+    const cleanupListeners = setupEventListeners()
 
-    // Cleanup ao desmontar
+    // Remove ouvintes ao desmontar
     return () => {
+      cleanupListeners()
       loadEventEmitter.removeAllListeners('AD_LOADED')
       showEventEmitter.removeAllListeners('AD_COMPLETED')
     }
