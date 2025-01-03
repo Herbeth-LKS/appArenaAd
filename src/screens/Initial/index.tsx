@@ -50,8 +50,8 @@ const InitialScreen = ({ navigation }: { navigation: any }) => {
 
       <Text style={styles.title}>Bem-vindo!</Text>
       <Text style={styles.subtitle}>
-        Aproveite o melhor do esporte por apenas
-        <Text style={styles.highlight}>R$ 1,00</Text>.
+        Aproveite o melhor do esporte sem pagar nada
+        <Text style={styles.highlight}></Text>.
       </Text>
 
       <FlatList
@@ -77,7 +77,7 @@ const InitialScreen = ({ navigation }: { navigation: any }) => {
         onPress={handleSubscribe}
         activeOpacity={0.8}
       >
-        <Text style={styles.subscribeButtonText}>Assinar por R$ 1,00</Text>
+        <Text style={styles.subscribeButtonText}>Assista Gratis</Text>
       </TouchableOpacity>
     </LinearGradient>
   )

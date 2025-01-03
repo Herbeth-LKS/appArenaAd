@@ -2,10 +2,19 @@
 // AppContext.tsx
 import Popup, { PopupFeedbackMessage } from '@/components/Popup/Popup'
 
-import React, { createContext, useEffect, useState, useContext } from 'react'
-import { StyleSheet, View, Image, Keyboard } from 'react-native'
-import { getApiHeaders } from '@/utils/api.utils'
-import { AuthContext } from './auth.context'
+import React, { createContext, useEffect, useState } from 'react'
+import {
+  StyleSheet,
+  View,
+  Image,
+  Keyboard,
+  Platform,
+  NativeEventEmitter,
+} from 'react-native'
+import { notificationsService } from '@/services/notificationsService'
+import messaging, { firebase } from '@react-native-firebase/messaging'
+import { useDeviceTokenMutation } from '@/hooks/mutations/useDeviceTokenMutation'
+import UnityAdsModule from 'react-native-unity-ads-moon'
 
 type AsyncBooleanFunction = () => Promise<boolean>
 
@@ -31,53 +40,127 @@ type AppProviderProps = {
 export const AppContext = createContext({} as AppContextType)
 
 export function AppProvider({ children }: AppProviderProps) {
+  const mutation = useDeviceTokenMutation()
   const [loading, setLoading] = useState<boolean>(false)
   const [menuVisible, setMenuVisible] = useState<boolean>(true)
   const [popup, setPopup] = useState<PopupFeedbackMessage | null>(null)
 
   const [onMenuBottomNavigation, setOnMenuBottomNavigation] = useState<any>()
   const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false)
-  const { singOut } = useContext(AuthContext)
+
+  const RNfirebaseConfig = {
+    apiKey: 'AIzaSyCWzveiPToCfK9TR6_r8CynKacV_u-ce-E',
+    authDomain: 'arenax-85e16.firebaseapp.com',
+    projectId: 'arenax-85e16',
+    storageBucket: 'arenax-85e16.firebasestorage.app',
+    messagingSenderId: '1069792140349',
+    appId: '1:1069792140349:android:6dd22f87465d81c3a79e54',
+    databaseURL: 'localhost',
+  }
 
   useEffect(() => {
-    async function checkApiHeaders() {
-      try {
-        const headers = await getApiHeaders()
-        if (headers.token === null) {
-          singOut()
-        }
-      } catch (error: any) {
-        singOut()
+    const initialize = async () => {
+      const unityRewardedAd = await UnityAdsModule.initializeAd(
+        '5767247',
+        false,
+      )
+      console.log('INITIALIZE UNITY ADS -> ' + unityRewardedAd)
+    }
+
+    initialize()
+    UnityAdsModule.loadAd('Interstitial_Android')
+  }, [])
+
+  useEffect(() => {
+    const loadEventEmitter = new NativeEventEmitter()
+    const showEventEmitter = new NativeEventEmitter()
+
+    const setupEventListeners = async () => {
+      const loadEventListener = loadEventEmitter.addListener(
+        'AD_LOADED',
+        (event) => {
+          console.log('Unity Ad loading complete')
+          console.log(event.adStatus) // "someValue"
+          UnityAdsModule.showAd('Interstitial_Android') // show unity ad
+        },
+      )
+
+      const showEventListener = showEventEmitter.addListener(
+        'AD_COMPLETED',
+        (event) => {
+          console.log('Unity Ad showing complete')
+          console.log(event.adStatus) // "someValue"
+
+          if (event.adStatus === 'fullComplete') {
+            console.log('ad complete')
+          }
+        },
+      )
+
+      /* Unsubscribe from events on unmount */
+      return () => {
+        loadEventListener.remove()
+        showEventListener.remove()
       }
     }
 
-    checkApiHeaders()
+    // Chame a função assíncrona
+    setupEventListeners()
+
+    // Cleanup ao desmontar
+    return () => {
+      loadEventEmitter.removeAllListeners('AD_LOADED')
+      showEventEmitter.removeAllListeners('AD_COMPLETED')
+    }
   }, [])
-  // const RNfirebaseConfig = {
-  //   apiKey: '',
-  //   authDomain: '',
-  //   projectId: '',
-  //   storageBucket: '',
-  //   messagingSenderId: '',
-  //   appId: '',
-  //   databaseURL: 'localhost',
-  // }
 
-  // if (firebase.apps.length === 0) {
-  //   firebase.initializeApp(RNfirebaseConfig)
-  // } else {
-  //   firebase.app()
-  // }
+  if (firebase.apps.length === 0) {
+    firebase.initializeApp(RNfirebaseConfig)
+  } else {
+    firebase.app()
+  }
 
-  // const { requestUserPermission } = notificationsService()
+  const { requestUserPermission } = notificationsService()
 
   const showPopup = (popup: PopupFeedbackMessage) => setPopup(popup)
   const hidePopup = () => setPopup(null)
 
   useEffect(() => {
-    // requestUserPermission()
+    const fetchDeviceToken = async () => {
+      await requestUserPermission()
 
-    console.log('Firebase initialized')
+      try {
+        const token = await messaging().getToken()
+        console.log('Firebase Device Token:', token)
+
+        if (token) {
+          mutation.mutate({
+            token,
+            device_type: Platform.OS, // Ou 'ios' dependendo da Platforma
+          })
+        }
+      } catch (error) {
+        console.error('Erro ao obter o device token:', error)
+      }
+    }
+
+    fetchDeviceToken()
+
+    // Listener para atualizações de token
+    const unsubscribe = messaging().onTokenRefresh((token) => {
+      console.log('Token atualizado:', token)
+
+      mutation.mutate({
+        token,
+        device_type: Platform.OS,
+      })
+    })
+
+    console.log('Firebase initialized', Platform.OS)
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   useEffect(() => {

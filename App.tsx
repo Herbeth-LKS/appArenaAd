@@ -6,17 +6,21 @@ import { AppProvider } from '@/contexts/app.context'
 import Toast from 'react-native-toast-message'
 import { toastConfig } from '@/utils/toast.utils'
 import { NavigationContainer } from '@react-navigation/native'
+import { QueryClient, QueryClientProvider } from 'react-query'
 
 export default function App() {
+  const queryClient = new QueryClient()
   return (
     <NavigationContainer>
       <PersistedStateProvider>
         <AuthProvider>
-          <AppProvider>
-            <AppNavigator />
-            <Toast config={toastConfig} />
-            <StatusBar style="dark" />
-          </AppProvider>
+          <QueryClientProvider client={queryClient}>
+            <AppProvider>
+              <AppNavigator />
+              <Toast config={toastConfig} />
+              <StatusBar style="dark" />
+            </AppProvider>
+          </QueryClientProvider>
         </AuthProvider>
       </PersistedStateProvider>
     </NavigationContainer>
